@@ -1,46 +1,122 @@
 # xhs-api-cli
 
-小红书命令行工具：通过逆向 API 搜索笔记、阅读内容、互动操作。使用浏览器 Cookie 认证，无需 API Key，纯 HTTP 请求。
+小红书 CLI — 通过逆向 API 在终端操作小红书 📕
 
-## Install
+## 推荐项目
+
+- [bilibili-cli](https://github.com/jackwener/bilibili-cli) — Bilibili CLI
+- [twitter-cli](https://github.com/jackwener/twitter-cli) — Twitter/X CLI
+
+## Features
+
+- 🔐 **Auth** — auto-extract browser cookies, whoami
+- 🔍 **Search** — notes by keyword, user search, topic search
+- 📖 **Reading** — note detail, comments, sub-comments, user profiles
+- 📰 **Feed** — recommendation feed, hot/trending by category
+- 👥 **Social** — followers, following, follow/unfollow
+- 👍 **Interactions** — like, collect, comment, reply, delete
+- ✍️ **Creator** — post image notes, delete notes, my-notes list
+- 🔔 **Notifications** — likes, comments, follows, mentions
+- 📊 **JSON output** — all commands support `--json` for scripting
+
+## Installation
 
 ```bash
-cd ~/code/xhs-api-cli
+# From source
+git clone git@github.com:jackwener/xhs-api-cli.git
+cd xhs-api-cli
 uv sync
-uv pip install -e .
+
+# Or: pip install
+pip install -e .
 ```
 
 ## Usage
 
 ```bash
-# Check connection
-xhs status
+# ─── Auth ─────────────────────────────────────────
+xhs login                             # Extract cookies from browser
+xhs status                            # Check login status
+xhs whoami                            # Detailed profile (fans, likes, etc)
+xhs whoami --json                     # Raw JSON
+xhs logout                            # Clear saved cookies
 
-# Search notes
-xhs search "AI编程" --sort popular
+# ─── Search ───────────────────────────────────────
+xhs search "美食"                      # Search notes
+xhs search "旅行" --sort popular       # Sort: general, popular, latest
+xhs search "穿搭" --type video         # Filter: all, video, image
+xhs search "AI" --page 2              # Pagination
+xhs search-user "用户名"               # Search users
+xhs topics "美食"                      # Search hashtags/topics
 
-# Read a note
-xhs read <note_id_or_url>
+# ─── Reading ──────────────────────────────────────
+xhs read <note_id>                     # Read a note
+xhs read https://xiaohongshu.com/...   # Read by URL
+xhs comments <note_id>                 # View comments
+xhs sub-comments <note_id> <cmt_id>   # View replies to a comment
+xhs user <user_id>                     # User profile
+xhs user-posts <user_id>              # User's published notes
+xhs user-posts <user_id> --cursor X   # Paginate with cursor
 
-# Get comments
-xhs comments <note_id_or_url>
+# ─── Feed & Discovery ────────────────────────────
+xhs feed                              # Recommendation feed
+xhs hot                               # Hot notes (default: food)
+xhs hot -c fashion                    # Categories: fashion, food, cosmetics,
+                                      #   movie, career, love, home, gaming,
+                                      #   travel, fitness
 
-# User profile
-xhs user <user_id>
-xhs user-posts <user_id>
+# ─── Social ───────────────────────────────────────
+xhs followers <user_id>               # User's fans
+xhs following <user_id>               # User's following
+xhs follow <user_id>                  # Follow a user
+xhs unfollow <user_id>                # Unfollow a user
+xhs user-collects <user_id>           # User's bookmarks
+xhs user-likes <user_id>              # User's liked notes
 
-# Browse feed
-xhs feed
+# ─── Interactions ─────────────────────────────────
+xhs like <note_id>                     # Like a note
+xhs like <note_id> --undo             # Unlike
+xhs collect <note_id>                  # Collect (bookmark)
+xhs collect <note_id> --undo          # Uncollect
+xhs comment <note_id> -c "好赞！"     # Post comment
+xhs reply <note_id> --comment-id X -c "回复"  # Reply to comment
+xhs delete-comment <note_id> <cmt_id> # Delete own comment
 
-# Search topics
-xhs topics "Claude Code"
+# ─── Creator ─────────────────────────────────────
+xhs my-notes                           # List own notes
+xhs my-notes --page 1                 # Next page
+xhs post --title "标题" --body "正文" --images img.jpg  # Post note
+xhs delete <note_id>                   # Delete note
+xhs delete <note_id> -y               # Skip confirmation
+
+# ─── Notifications ────────────────────────────────
+xhs notifications                      # Like notifications
+xhs notifications --type comments     # Comment notifications
+xhs notifications --type follows      # New followers
+xhs notifications --type mentions     # @mentions
 ```
 
-All commands support `--json` for raw JSON output.
+## Authentication
 
-## How It Works
+xhs-api-cli uses a 2-tier authentication strategy:
 
-Uses browser cookies from Chrome/Safari/Firefox and signs API requests with the XHS signing algorithm. No browser automation — pure HTTP requests.
+1. **Saved cookies** — loads from `~/.xhs-api-cli/cookies.json`
+2. **Browser cookies** — auto-extracts from Chrome, Firefox, Safari, Edge, Brave
+
+Cookies are validated on use. Most commands require authentication. Use `--cookie-source` to specify browser (default: chrome).
+
+## Development
+
+```bash
+# Run tests
+.venv/bin/python -m pytest tests/ -v
+
+# Unit tests only (no network)
+.venv/bin/python -m pytest tests/ -v --ignore=tests/test_integration.py
+
+# Integration tests (need cookies)
+.venv/bin/python -m pytest tests/test_integration.py -v
+```
 
 ## License
 

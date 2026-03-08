@@ -117,3 +117,29 @@ def reply(ctx, id_or_url: str, comment_id: str, content: str, as_json: bool):
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
         raise SystemExit(1)
+
+
+@click.command("delete-comment")
+@click.argument("note_id")
+@click.argument("comment_id")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation")
+@click.pass_context
+def delete_comment(ctx, note_id: str, comment_id: str, as_json: bool, yes: bool):
+    """Delete a comment you posted."""
+    if not yes:
+        click.confirm(f"Delete comment {comment_id} on note {note_id}?", abort=True)
+
+    try:
+        with _get_client(ctx) as client:
+            data = client.delete_comment(note_id, comment_id)
+
+        if as_json:
+            print_json(data)
+        else:
+            print_success(f"Deleted comment {comment_id}")
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)
+

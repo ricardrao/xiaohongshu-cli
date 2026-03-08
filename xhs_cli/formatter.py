@@ -278,3 +278,54 @@ def render_topics(data: Any) -> None:
         table.add_row(str(i), f"#{name}", view_num, topic_id)
 
     console.print(table)
+
+
+def render_users(data: Any) -> None:
+    """Render user search results."""
+    users = data if isinstance(data, list) else data.get("user_info_dtos", data.get("users", []))
+    if not users:
+        print_info("No users found")
+        return
+
+    table = Table(title="用户搜索结果", show_lines=True)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("昵称", min_width=12)
+    table.add_column("小红书号", min_width=10)
+    table.add_column("粉丝", justify="right", width=8)
+    table.add_column("ID", style="dim", width=24)
+
+    for i, u in enumerate(users, 1):
+        nickname = u.get("nickname", u.get("nick_name", ""))
+        red_id = u.get("red_id", "")
+        fans = format_count(u.get("fans", u.get("fansCount", 0)))
+        user_id = u.get("user_id", u.get("id", ""))
+        table.add_row(str(i), nickname, red_id, fans, user_id)
+
+    console.print(table)
+
+
+def render_creator_notes(data: Any) -> None:
+    """Render creator's own note list."""
+    notes = data if isinstance(data, list) else data.get("notes", data.get("note_list", []))
+    if not notes:
+        print_info("No notes found")
+        return
+
+    table = Table(title="我的笔记", show_lines=True)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("标题", min_width=20)
+    table.add_column("❤️", justify="right", width=8)
+    table.add_column("💬", justify="right", width=6)
+    table.add_column("状态", width=6)
+    table.add_column("ID", style="dim", width=24)
+
+    for i, note in enumerate(notes, 1):
+        title = note.get("title", note.get("display_title", ""))[:40]
+        liked = str(note.get("liked_count", note.get("interact_info", {}).get("liked_count", "")))
+        comment_count = str(note.get("comment_count", note.get("interact_info", {}).get("comment_count", "")))
+        status = "✅" if note.get("status") in (None, 0, "published") else "⏳"
+        note_id = note.get("note_id", note.get("id", ""))
+        table.add_row(str(i), title, liked, comment_count, status, note_id)
+
+    console.print(table)
+

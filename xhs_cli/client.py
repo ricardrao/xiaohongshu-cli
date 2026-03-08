@@ -475,6 +475,92 @@ class XhsClient:
             "page": page,
         })
 
+    # ─── P1: Social Graph Endpoints ───────────────────────────────────────
+
+    def get_user_followers(self, user_id: str, cursor: str = "") -> Any:
+        """Get a user's followers list."""
+        return self._main_api_get("/api/sns/web/v1/user/follow/followers", {
+            "user_id": user_id,
+            "cursor": cursor,
+            "num": 30,
+        })
+
+    def get_user_following(self, user_id: str, cursor: str = "") -> Any:
+        """Get a user's following list."""
+        return self._main_api_get("/api/sns/web/v1/user/follow/followings", {
+            "user_id": user_id,
+            "cursor": cursor,
+            "num": 30,
+        })
+
+    def follow_user(self, user_id: str) -> Any:
+        """Follow a user."""
+        return self._main_api_post("/api/sns/web/v1/user/follow", {
+            "target_user_id": user_id,
+        })
+
+    def unfollow_user(self, user_id: str) -> Any:
+        """Unfollow a user."""
+        return self._main_api_post("/api/sns/web/v1/user/unfollow", {
+            "target_user_id": user_id,
+        })
+
+    # ─── P1: Discovery Endpoints ──────────────────────────────────────────
+
+    def get_hot_feed(self, category: str = "homefeed.fashion_v3") -> Any:
+        """Get hot/trending notes feed.
+
+        Categories: homefeed.fashion_v3 (穿搭), homefeed.food_v3 (美食),
+        homefeed.cosmetics_v3 (彩妆), homefeed.movie_and_tv_v3 (影视),
+        homefeed.career_v3 (职场), homefeed.love_v3 (情感),
+        homefeed.household_product_v3 (家居), homefeed.gaming_v3 (游戏),
+        homefeed.travel_v3 (旅行), homefeed.fitness_v3 (健身)
+        """
+        return self._main_api_post("/api/sns/web/v1/homefeed", {
+            "cursor_score": "",
+            "num": 40,
+            "refresh_type": 1,
+            "note_index": 0,
+            "unread_begin_note_id": "",
+            "unread_end_note_id": "",
+            "unread_note_count": 0,
+            "category": category,
+            "search_key": "",
+            "need_num": 40,
+            "image_scenes": ["FD_PRV_WEBP", "FD_WM_WEBP"],
+        })
+
+    # ─── P1: User Content Lists ───────────────────────────────────────────
+
+    def get_user_collects(self, user_id: str, cursor: str = "") -> Any:
+        """Get a user's collected (bookmarked) notes."""
+        return self._main_api_get("/api/sns/web/v2/note/collect/page", {
+            "user_id": user_id,
+            "cursor": cursor,
+            "num": 30,
+        })
+
+    def get_user_likes(self, user_id: str, cursor: str = "") -> Any:
+        """Get a user's liked notes."""
+        return self._main_api_get("/api/sns/web/v1/user/like", {
+            "user_id": user_id,
+            "cursor": cursor,
+            "num": 30,
+        })
+
+    # ─── P1: Notification Endpoints ───────────────────────────────────────
+
+    def get_notifications(self, cursor: str = "", category: str = "likes") -> Any:
+        """Get notifications.
+
+        Categories: likes (点赞), comments (评论), follows (新关注), mentions (@我)
+        """
+        return self._main_api_get("/api/sns/web/v1/you/notifications", {
+            "category": category,
+            "cursor": cursor,
+            "num": 20,
+        })
+
     # ─── HTML Fallback ────────────────────────────────────────────────────
 
     def get_note_from_html(self, note_id: str, xsec_token: str) -> Any:

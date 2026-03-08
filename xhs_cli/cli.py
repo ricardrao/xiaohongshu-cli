@@ -24,7 +24,7 @@ import logging
 import click
 
 from . import __version__
-from .commands import auth, reading, interactions, creator
+from .commands import auth, reading, interactions, creator, social
 
 
 @click.group()
@@ -52,16 +52,22 @@ def cli(ctx, verbose: bool, cookie_source: str):
 cli.add_command(auth.login)
 cli.add_command(auth.status)
 cli.add_command(auth.logout)
+cli.add_command(auth.whoami)
 
 # ─── Reading commands ────────────────────────────────────────────────────────
 
 cli.add_command(reading.search)
 cli.add_command(reading.read)
 cli.add_command(reading.comments)
+cli.add_command(reading.sub_comments)
 cli.add_command(reading.user)
 cli.add_command(reading.user_posts)
 cli.add_command(reading.feed)
+cli.add_command(reading.hot)
 cli.add_command(reading.topics)
+cli.add_command(reading.search_user)
+cli.add_command(reading.my_notes)
+cli.add_command(reading.notifications)
 
 # ─── Interaction commands ────────────────────────────────────────────────────
 
@@ -69,6 +75,16 @@ cli.add_command(interactions.like)
 cli.add_command(interactions.collect)
 cli.add_command(interactions.comment)
 cli.add_command(interactions.reply)
+cli.add_command(interactions.delete_comment)
+
+# ─── Social commands ────────────────────────────────────────────────────────
+
+cli.add_command(social.followers)
+cli.add_command(social.following)
+cli.add_command(social.follow)
+cli.add_command(social.unfollow)
+cli.add_command(social.user_collects)
+cli.add_command(social.user_likes)
 
 # ─── Creator commands ───────────────────────────────────────────────────────
 

@@ -77,3 +77,28 @@ def logout():
     """Clear saved cookies and log out."""
     clear_cookies()
     print_success("Logged out — cookies cleared")
+
+
+@click.command()
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def whoami(ctx, as_json: bool):
+    """Show detailed profile of current user (level, fans, likes)."""
+    cookie_source = ctx.obj.get("cookie_source", "chrome") if ctx.obj else "chrome"
+    try:
+        cookies = get_cookies(cookie_source)
+        with XhsClient(cookies) as client:
+            info = client.get_self_info()
+
+        if as_json:
+            print_json(info)
+        else:
+            render_user_info(info)
+
+    except NoCookieError:
+        print_error("Not logged in. Run: xhs login")
+        raise SystemExit(1)
+    except XhsApiError as e:
+        print_error(f"Failed to get profile: {e}")
+        raise SystemExit(1)
+

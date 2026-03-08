@@ -1,4 +1,4 @@
-"""Reading commands: search, read, comments, user, user-posts, feed, topics."""
+"""Reading commands: search, read, comments, sub-comments, user, user-posts, feed, topics, search-user, my-notes."""
 
 import click
 
@@ -6,17 +6,20 @@ from ..cookies import get_cookies
 from ..client import XhsClient
 from ..exceptions import XhsApiError, NoCookieError
 from ..formatter import (
+    console,
     extract_note_id,
     print_error,
     print_json,
     print_info,
     render_comments,
+    render_creator_notes,
     render_feed,
     render_note,
     render_search_results,
     render_topics,
     render_user_info,
     render_user_posts,
+    render_users,
 )
 
 
@@ -199,3 +202,145 @@ def topics(ctx, keyword: str, as_json: bool):
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
         raise SystemExit(1)
+
+
+@click.command("sub-comments")
+@click.argument("note_id")
+@click.argument("comment_id")
+@click.option("--cursor", default="", help="Pagination cursor")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def sub_comments(ctx, note_id: str, comment_id: str, cursor: str, as_json: bool):
+    """View replies to a specific comment."""
+    try:
+        with _get_client(ctx) as client:
+            data = client.get_sub_comments(note_id, comment_id, cursor=cursor)
+
+        if as_json:
+            print_json(data)
+        else:
+            render_comments(data)
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)
+
+
+@click.command("search-user")
+@click.argument("keyword")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def search_user(ctx, keyword: str, as_json: bool):
+    """Search for users by keyword."""
+    try:
+        with _get_client(ctx) as client:
+            data = client.search_users(keyword)
+
+        if as_json:
+            print_json(data)
+        else:
+            render_users(data)
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)
+
+
+@click.command("my-notes")
+@click.option("--page", default=0, help="Page number (0-indexed)")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def my_notes(ctx, page: int, as_json: bool):
+    """List your own published notes."""
+    try:
+        with _get_client(ctx) as client:
+            data = client.get_creator_note_list(page=page)
+
+        if as_json:
+            print_json(data)
+        else:
+            render_creator_notes(data)
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)
+
+
+HOT_CATEGORIES = {
+    "fashion": "homefeed.fashion_v3",
+    "food": "homefeed.food_v3",
+    "cosmetics": "homefeed.cosmetics_v3",
+    "movie": "homefeed.movie_and_tv_v3",
+    "career": "homefeed.career_v3",
+    "love": "homefeed.love_v3",
+    "home": "homefeed.household_product_v3",
+    "gaming": "homefeed.gaming_v3",
+    "travel": "homefeed.travel_v3",
+    "fitness": "homefeed.fitness_v3",
+}
+
+
+@click.command()
+@click.option(
+    "--category", "-c",
+    type=click.Choice(list(HOT_CATEGORIES.keys())),
+    default="food",
+    help="Category (fashion, food, cosmetics, movie, career, love, home, gaming, travel, fitness)",
+)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def hot(ctx, category: str, as_json: bool):
+    """Browse hot/trending notes by category."""
+    try:
+        with _get_client(ctx) as client:
+            data = client.get_hot_feed(HOT_CATEGORIES[category])
+
+        if as_json:
+            print_json(data)
+        else:
+            render_feed(data)
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)
+
+
+@click.command()
+@click.option(
+    "--type", "notif_type",
+    type=click.Choice(["likes", "comments", "follows", "mentions"]),
+    default="likes",
+    help="Notification type",
+)
+@click.option("--cursor", default="", help="Pagination cursor")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def notifications(ctx, notif_type: str, cursor: str, as_json: bool):
+    """View notifications (likes, comments, follows, mentions)."""
+    try:
+        with _get_client(ctx) as client:
+            data = client.get_notifications(cursor=cursor, category=notif_type)
+
+        if as_json:
+            print_json(data)
+        else:
+            # Generic rendering — notification structure varies
+            if data and isinstance(data, dict):
+                items = data.get("items", data.get("notifications", []))
+                if not items:
+                    print_info("No notifications")
+                else:
+                    for item in items[:20]:
+                        user = item.get("user", item.get("user_info", {}))
+                        nickname = user.get("nickname", "Unknown")
+                        action = item.get("type", notif_type)
+                        content = item.get("content", item.get("note_title", ""))
+                        console.print(f"  [bold]{nickname}[/bold] {action}: {content}")
+            else:
+                print_info("No notifications")
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)
+
+
