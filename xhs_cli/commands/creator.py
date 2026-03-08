@@ -1,0 +1,93 @@
+"""Creator commands: post, delete."""
+
+import click
+
+from ..cookies import get_cookies
+from ..client import XhsClient
+from ..exceptions import XhsApiError, NoCookieError
+from ..formatter import extract_note_id, print_error, print_json, print_success, print_info
+
+
+def _get_client(ctx) -> XhsClient:
+    cookie_source = ctx.obj.get("cookie_source", "chrome") if ctx.obj else "chrome"
+    cookies = get_cookies(cookie_source)
+    return XhsClient(cookies)
+
+
+@click.command()
+@click.option("--title", required=True, help="Note title")
+@click.option("--body", required=True, help="Note body text")
+@click.option("--images", required=True, multiple=True, help="Image file path(s)")
+@click.option("--topic", default=None, help="Topic/hashtag to search and attach")
+@click.option("--private", "is_private", is_flag=True, help="Publish as private note")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def post(ctx, title: str, body: str, images: tuple[str, ...], topic: str | None, is_private: bool, as_json: bool):
+    """Publish an image note."""
+    try:
+        with _get_client(ctx) as client:
+            # Upload images
+            file_ids = []
+            for img_path in images:
+                print_info(f"Uploading {img_path}...")
+                permit = client.get_upload_permit()
+                client.upload_file(permit["fileId"], permit["token"], img_path)
+                file_ids.append(permit["fileId"])
+                print_success(f"Uploaded: {img_path}")
+
+            # Search topic if provided
+            topics = []
+            if topic:
+                topic_data = client.search_topics(topic)
+                topic_list = topic_data if isinstance(topic_data, list) else topic_data.get("topic_info_dtos", [])
+                if topic_list:
+                    first = topic_list[0]
+                    topics.append({
+                        "id": first.get("id", ""),
+                        "name": first.get("name", topic),
+                        "type": "topic",
+                    })
+
+            # Create note
+            data = client.create_image_note(
+                title=title,
+                desc=body,
+                image_file_ids=file_ids,
+                topics=topics,
+                is_private=is_private,
+            )
+
+            if as_json:
+                print_json(data)
+            else:
+                print_success(f"Note published: {title}" + (" (private)" if is_private else ""))
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)
+
+
+@click.command("delete")
+@click.argument("id_or_url")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation")
+@click.pass_context
+def delete(ctx, id_or_url: str, as_json: bool, yes: bool):
+    """Delete a note."""
+    note_id = extract_note_id(id_or_url)
+
+    if not yes:
+        click.confirm(f"Delete note {note_id}?", abort=True)
+
+    try:
+        with _get_client(ctx) as client:
+            data = client.delete_note(note_id)
+
+        if as_json:
+            print_json(data)
+        else:
+            print_success(f"Deleted note {note_id}")
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)

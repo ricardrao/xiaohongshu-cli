@@ -1,0 +1,79 @@
+"""Authentication commands: login, status, logout."""
+
+import click
+
+from ..cookies import clear_cookies, get_cookies, load_saved_cookies
+from ..client import XhsClient
+from ..exceptions import NoCookieError, XhsApiError
+from ..formatter import console, print_error, print_json, print_success, print_info, render_user_info
+
+
+@click.command()
+@click.option("--cookie-source", default="chrome", help="Browser to read cookies from (chrome, safari, firefox)")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def login(cookie_source: str, as_json: bool):
+    """Log in by extracting cookies from browser."""
+    try:
+        cookies = get_cookies(cookie_source)
+        print_success(f"Cookies extracted from {cookie_source}")
+
+        # Verify by fetching user info
+        with XhsClient(cookies) as client:
+            info = client.get_self_info()
+
+        if as_json:
+            print_json(info)
+        else:
+            nickname = info.get("nickname", "Unknown")
+            red_id = info.get("red_id", "")
+            print_success(f"Logged in as: {nickname} (ID: {red_id})")
+
+    except NoCookieError as e:
+        print_error(str(e))
+        raise SystemExit(1)
+    except XhsApiError as e:
+        print_error(f"Login verification failed: {e}")
+        raise SystemExit(1)
+
+
+@click.command()
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def status(ctx, as_json: bool):
+    """Check current login status and user info."""
+    cookie_source = ctx.obj.get("cookie_source", "chrome") if ctx.obj else "chrome"
+    try:
+        cookies = get_cookies(cookie_source)
+        with XhsClient(cookies) as client:
+            info = client.get_self_info()
+
+        if as_json:
+            print_json(info)
+        else:
+            nickname = info.get("nickname", "Unknown")
+            red_id = info.get("red_id", "")
+            ip_location = info.get("ip_location", "")
+            desc = info.get("desc", "")
+
+            console.print(f"[bold green]✓ Logged in[/bold green]")
+            console.print(f"  昵称: [bold]{nickname}[/bold]")
+            if red_id:
+                console.print(f"  小红书号: {red_id}")
+            if ip_location:
+                console.print(f"  IP 属地: {ip_location}")
+            if desc:
+                console.print(f"  简介: {desc}")
+
+    except NoCookieError:
+        print_error("Not logged in. Run: xhs login")
+        raise SystemExit(1)
+    except XhsApiError as e:
+        print_error(f"Status check failed: {e}")
+        raise SystemExit(1)
+
+
+@click.command()
+def logout():
+    """Clear saved cookies and log out."""
+    clear_cookies()
+    print_success("Logged out — cookies cleared")

@@ -1,0 +1,280 @@
+"""Rich formatting utilities for XHS CLI output."""
+
+import json
+from typing import Any
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+
+console = Console()
+error_console = Console(stderr=True)
+
+
+def print_json(data: Any) -> None:
+    """Print raw JSON output."""
+    console.print_json(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def print_error(message: str) -> None:
+    """Print error message."""
+    error_console.print(f"[red]✗[/red] {message}")
+
+
+def print_success(message: str) -> None:
+    """Print success message."""
+    console.print(f"[green]✓[/green] {message}")
+
+
+def print_info(message: str) -> None:
+    """Print info message."""
+    console.print(f"[dim]ℹ[/dim] {message}")
+
+
+def format_count(n: int | str) -> str:
+    """Format number for display (e.g., 12345 → 1.2万)."""
+    if isinstance(n, str):
+        try:
+            n = int(n)
+        except ValueError:
+            return n
+    if n >= 100_000_000:
+        return f"{n / 100_000_000:.1f}亿"
+    if n >= 10_000:
+        return f"{n / 10_000:.1f}万"
+    return str(n)
+
+
+def extract_note_id(id_or_url: str) -> str:
+    """Extract note ID from URL or return as-is."""
+    if "xiaohongshu.com" in id_or_url:
+        # https://www.xiaohongshu.com/explore/<id>?...
+        # https://www.xiaohongshu.com/discovery/item/<id>?...
+        parts = id_or_url.rstrip("/").split("/")
+        # Get last path segment, strip query params
+        last = parts[-1].split("?")[0]
+        return last
+    return id_or_url
+
+
+def render_user_info(data: dict[str, Any]) -> None:
+    """Render user profile info as a Rich panel."""
+    basic = data.get("basic_info", {})
+    interactions = data.get("interactions", [])
+
+    nickname = basic.get("nickname", "Unknown")
+    red_id = basic.get("red_id", "")
+    desc = basic.get("desc", "")
+    ip_location = basic.get("ip_location", "")
+    gender = "♂️" if basic.get("gender") == 0 else "♀️" if basic.get("gender") == 1 else ""
+
+    # Build interaction stats
+    stats = {}
+    for item in interactions:
+        stats[item.get("type", "")] = item.get("count", "0")
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim")
+    table.add_column("Value")
+
+    table.add_row("昵称", f"[bold]{nickname}[/bold] {gender}")
+    if red_id:
+        table.add_row("小红书号", red_id)
+    if desc:
+        table.add_row("简介", desc)
+    if ip_location:
+        table.add_row("IP 属地", ip_location)
+    if "fans" in stats:
+        table.add_row("粉丝", format_count(stats["fans"]))
+    if "follows" in stats:
+        table.add_row("关注", format_count(stats["follows"]))
+    if "interaction" in stats:
+        table.add_row("获赞与收藏", format_count(stats["interaction"]))
+
+    console.print(Panel(table, title=f"👤 {nickname}", border_style="blue"))
+
+
+def render_note(data: dict[str, Any]) -> None:
+    """Render a note as a Rich panel."""
+    items = data.get("items", [])
+    if not items:
+        print_error("No note data found")
+        return
+
+    note = items[0].get("note_card", {})
+    title = note.get("title", "Untitled")
+    desc = note.get("desc", "")
+    user = note.get("user", {})
+    nickname = user.get("nickname", "Unknown")
+    interact = note.get("interact_info", {})
+
+    liked_count = interact.get("liked_count", "0")
+    collected_count = interact.get("collected_count", "0")
+    comment_count = interact.get("comment_count", "0")
+    share_count = interact.get("share_count", "0")
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim")
+    table.add_column("Value")
+
+    table.add_row("作者", f"[bold]{nickname}[/bold]")
+    table.add_row("标题", f"[bold]{title}[/bold]")
+    if desc:
+        # Truncate long descriptions
+        display_desc = desc[:500] + "..." if len(desc) > 500 else desc
+        table.add_row("正文", display_desc)
+
+    tags = note.get("tag_list", [])
+    if tags:
+        tag_str = " ".join(f"[cyan]#{t.get('name', '')}[/cyan]" for t in tags)
+        table.add_row("标签", tag_str)
+
+    stats_str = (
+        f"❤️ {format_count(liked_count)}  "
+        f"⭐ {format_count(collected_count)}  "
+        f"💬 {format_count(comment_count)}  "
+        f"🔗 {format_count(share_count)}"
+    )
+    table.add_row("数据", stats_str)
+
+    # Image list
+    image_list = note.get("image_list", [])
+    if image_list:
+        table.add_row("图片", f"{len(image_list)} 张")
+
+    console.print(Panel(table, title=f"📝 {title}", border_style="green"))
+
+
+def render_search_results(data: dict[str, Any]) -> None:
+    """Render search results as a Rich table."""
+    items = data.get("items", [])
+    if not items:
+        print_info("No results found")
+        return
+
+    has_next = data.get("has_more", False)
+
+    table = Table(title="搜索结果", show_lines=True)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("标题", min_width=20)
+    table.add_column("作者", min_width=8)
+    table.add_column("❤️", justify="right", width=8)
+    table.add_column("类型", width=4)
+    table.add_column("ID", style="dim", width=24)
+
+    for i, item in enumerate(items, 1):
+        note_card = item.get("note_card", item)
+        if not isinstance(note_card, dict):
+            continue
+
+        title = note_card.get("title", note_card.get("display_title", ""))[:40]
+        user = note_card.get("user", {})
+        nickname = user.get("nickname", "")
+        liked = str(note_card.get("interact_info", {}).get("liked_count", ""))
+        note_type = "📹" if note_card.get("type") == "video" else "📷"
+        note_id = item.get("id", note_card.get("note_id", ""))
+        xsec_token = item.get("xsec_token", "")
+
+        table.add_row(str(i), title, nickname, liked, note_type, note_id)
+
+    console.print(table)
+    if has_next:
+        print_info("More results available — use --page to paginate")
+
+
+def render_comments(data: dict[str, Any]) -> None:
+    """Render comments as a Rich display."""
+    comments = data.get("comments", [])
+    if not comments:
+        print_info("No comments found")
+        return
+
+    for comment in comments:
+        user = comment.get("user_info", {})
+        nickname = user.get("nickname", "Unknown")
+        content = comment.get("content", "")
+        like_count = comment.get("like_count", "0")
+        sub_comment_count = comment.get("sub_comment_count", 0)
+        create_time = comment.get("create_time", 0)
+
+        header = f"[bold]{nickname}[/bold]  [dim]❤️ {like_count}[/dim]"
+        if sub_comment_count > 0:
+            header += f"  [dim]💬 {sub_comment_count} replies[/dim]"
+
+        console.print(header)
+        console.print(f"  {content}")
+        console.print()
+
+
+def render_feed(data: dict[str, Any]) -> None:
+    """Render feed items as a Rich table."""
+    items = data.get("items", [])
+    if not items:
+        print_info("No feed items")
+        return
+
+    table = Table(title="推荐页", show_lines=True)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("标题", min_width=20)
+    table.add_column("作者", min_width=8)
+    table.add_column("❤️", justify="right", width=8)
+    table.add_column("ID", style="dim", width=24)
+
+    for i, item in enumerate(items[:20], 1):
+        note_card = item.get("note_card", {})
+        title = note_card.get("title", note_card.get("display_title", ""))[:40]
+        user = note_card.get("user", {})
+        nickname = user.get("nickname", "")
+        liked = str(note_card.get("interact_info", {}).get("liked_count", ""))
+        note_id = item.get("id", "")
+
+        table.add_row(str(i), title, nickname, liked, note_id)
+
+    console.print(table)
+
+
+def render_user_posts(notes: list[dict[str, Any]]) -> None:
+    """Render a list of user's notes."""
+    if not notes:
+        print_info("No notes found")
+        return
+
+    table = Table(title="用户笔记", show_lines=True)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("标题", min_width=20)
+    table.add_column("❤️", justify="right", width=8)
+    table.add_column("类型", width=4)
+    table.add_column("ID", style="dim", width=24)
+
+    for i, note in enumerate(notes, 1):
+        title = note.get("display_title", "")[:40]
+        liked = str(note.get("interact_info", {}).get("liked_count", note.get("liked_count", "")))
+        note_type = "📹" if note.get("type") == "video" else "📷"
+        note_id = note.get("note_id", "")
+
+        table.add_row(str(i), title, liked, note_type, note_id)
+
+    console.print(table)
+
+
+def render_topics(data: Any) -> None:
+    """Render topic search results."""
+    topics = data if isinstance(data, list) else data.get("topic_info_dtos", [])
+    if not topics:
+        print_info("No topics found")
+        return
+
+    table = Table(title="话题", show_lines=True)
+    table.add_column("#", style="dim", width=3)
+    table.add_column("话题名", min_width=15)
+    table.add_column("热度", justify="right", width=10)
+    table.add_column("ID", style="dim", width=24)
+
+    for i, topic in enumerate(topics, 1):
+        name = topic.get("name", "")
+        view_num = format_count(topic.get("view_num", 0))
+        topic_id = topic.get("id", "")
+        table.add_row(str(i), f"#{name}", view_num, topic_id)
+
+    console.print(table)
