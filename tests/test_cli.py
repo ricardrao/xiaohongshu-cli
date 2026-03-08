@@ -47,12 +47,12 @@ class TestCliBasic:
             "login", "status", "logout", "whoami",
             # Reading
             "search", "read", "comments", "sub-comments", "user", "user-posts",
-            "feed", "hot", "topics", "search-user", "my-notes", "notifications",
+            "feed", "hot", "topics", "search-user", "my-notes",
+            "notifications", "unread",
             # Interactions
             "like", "collect", "comment", "reply", "delete-comment",
             # Social
-            "followers", "following", "follow", "unfollow",
-            "user-collects", "user-likes",
+            "follow", "unfollow", "user-collects",
             # Creator
             "post", "delete",
         ]
@@ -68,8 +68,8 @@ class TestCliBasic:
         assert result.exit_code == 0
         assert "category" in result.output.lower()
 
-    def test_followers_help(self):
-        result = runner.invoke(cli, ["followers", "--help"])
+    def test_unread_help(self):
+        result = runner.invoke(cli, ["unread", "--help"])
         assert result.exit_code == 0
 
     def test_my_notes_help(self):

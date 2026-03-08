@@ -308,39 +308,81 @@ def hot(ctx, category: str, as_json: bool):
 @click.command()
 @click.option(
     "--type", "notif_type",
-    type=click.Choice(["likes", "comments", "follows", "mentions"]),
-    default="likes",
-    help="Notification type",
+    type=click.Choice(["mentions", "likes", "connections"]),
+    default="mentions",
+    help="Notification type: mentions (评论和@), likes (赞和收藏), connections (新增关注)",
 )
 @click.option("--cursor", default="", help="Pagination cursor")
+@click.option("--num", default=20, help="Number of items per page")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.pass_context
-def notifications(ctx, notif_type: str, cursor: str, as_json: bool):
-    """View notifications (likes, comments, follows, mentions)."""
+def notifications(ctx, notif_type: str, cursor: str, num: int, as_json: bool):
+    """View notifications (mentions, likes, connections)."""
     try:
         with _get_client(ctx) as client:
-            data = client.get_notifications(cursor=cursor, category=notif_type)
+            if notif_type == "mentions":
+                data = client.get_notification_mentions(cursor=cursor, num=num)
+            elif notif_type == "likes":
+                data = client.get_notification_likes(cursor=cursor, num=num)
+            else:
+                data = client.get_notification_connections(cursor=cursor, num=num)
 
         if as_json:
             print_json(data)
         else:
-            # Generic rendering — notification structure varies
-            if data and isinstance(data, dict):
-                items = data.get("items", data.get("notifications", []))
-                if not items:
-                    print_info("No notifications")
-                else:
-                    for item in items[:20]:
-                        user = item.get("user", item.get("user_info", {}))
-                        nickname = user.get("nickname", "Unknown")
-                        action = item.get("type", notif_type)
-                        content = item.get("content", item.get("note_title", ""))
-                        console.print(f"  [bold]{nickname}[/bold] {action}: {content}")
-            else:
+            messages = data.get("message_list", []) if isinstance(data, dict) else []
+            if not messages:
                 print_info("No notifications")
+            else:
+                from rich.table import Table
+                table = Table(title=f"通知 — {notif_type}", show_lines=True)
+                table.add_column("#", style="dim", width=3)
+                table.add_column("用户", width=12)
+                table.add_column("内容", width=40)
+                table.add_column("时间", width=12)
+
+                import time as _time
+                for i, msg in enumerate(messages[:20], 1):
+                    user = msg.get("user", {})
+                    nickname = user.get("nickname", "")
+                    title = msg.get("title", "")
+                    content = msg.get("content", "")
+                    display = f"{title}" + (f": {content[:30]}" if content else "")
+                    ts = msg.get("time", 0)
+                    time_str = _time.strftime("%m-%d %H:%M", _time.localtime(ts)) if ts else ""
+                    table.add_row(str(i), nickname, display, time_str)
+
+                console.print(table)
 
     except (NoCookieError, XhsApiError) as e:
         print_error(str(e))
         raise SystemExit(1)
+
+
+@click.command()
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.pass_context
+def unread(ctx, as_json: bool):
+    """Show unread notification counts."""
+    try:
+        with _get_client(ctx) as client:
+            data = client.get_unread_count()
+
+        if as_json:
+            print_json(data)
+        else:
+            mentions = data.get("mentions", 0)
+            likes = data.get("likes", 0)
+            connections = data.get("connections", 0)
+            total = data.get("unread_count", 0)
+            console.print(f"📬 未读通知: [bold]{total}[/bold]")
+            console.print(f"   💬 评论和@: {mentions}")
+            console.print(f"   ❤️ 赞和收藏: {likes}")
+            console.print(f"   👥 新增关注: {connections}")
+
+    except (NoCookieError, XhsApiError) as e:
+        print_error(str(e))
+        raise SystemExit(1)
+
 
 

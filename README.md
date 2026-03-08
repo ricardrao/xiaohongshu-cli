@@ -13,10 +13,10 @@
 - 🔍 **Search** — notes by keyword, user search, topic search
 - 📖 **Reading** — note detail, comments, sub-comments, user profiles
 - 📰 **Feed** — recommendation feed, hot/trending by category
-- 👥 **Social** — followers, following, follow/unfollow
+- 👥 **Social** — follow/unfollow, user bookmarks
 - 👍 **Interactions** — like, collect, comment, reply, delete
 - ✍️ **Creator** — post image notes, delete notes, my-notes list
-- 🔔 **Notifications** — likes, comments, follows, mentions
+- 🔔 **Notifications** — unread count, mentions, likes, new followers
 - 📊 **JSON output** — all commands support `--json` for scripting
 
 ## Installation
@@ -66,12 +66,9 @@ xhs hot -c fashion                    # Categories: fashion, food, cosmetics,
                                       #   travel, fitness
 
 # ─── Social ───────────────────────────────────────
-xhs user-collects <user_id>           # User's bookmarks ✅
-xhs followers <user_id>               # ⚠️ experimental
-xhs following <user_id>               # ⚠️ experimental
-xhs follow <user_id>                  # ⚠️ experimental
-xhs unfollow <user_id>                # ⚠️ experimental
-xhs user-likes <user_id>              # ⚠️ experimental
+xhs user-collects <user_id>           # User's bookmarks
+xhs follow <user_id>                  # Follow a user
+xhs unfollow <user_id>                # Unfollow a user
 
 # ─── Interactions ─────────────────────────────────
 xhs like <note_id>                     # Like a note
@@ -90,11 +87,11 @@ xhs delete <note_id>                   # Delete note
 xhs delete <note_id> -y               # Skip confirmation
 
 # ─── Notifications ────────────────────────────────
-xhs notifications                      # ⚠️ experimental
-xhs notifications --type comments     # ⚠️ experimental
+xhs unread                             # Unread counts (likes, mentions, follows)
+xhs notifications                      # 评论和@ notifications
+xhs notifications --type likes        # 赞和收藏 notifications
+xhs notifications --type connections   # 新增关注 notifications
 ```
-
-> **⚠️ Experimental commands**: `followers`, `following`, `follow`, `unfollow`, `user-likes`, `notifications` — XHS web API 可能未公开这些端点，需要浏览器抓包获取正确路径后才能使用。
 
 ## Authentication
 

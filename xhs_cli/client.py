@@ -477,21 +477,9 @@ class XhsClient:
 
     # ─── P1: Social Graph Endpoints ───────────────────────────────────────
 
-    def get_user_followers(self, user_id: str, cursor: str = "") -> Any:
-        """Get a user's followers list."""
-        return self._main_api_get("/api/sns/web/v1/user/follow/followers", {
-            "user_id": user_id,
-            "cursor": cursor,
-            "num": 30,
-        })
-
-    def get_user_following(self, user_id: str, cursor: str = "") -> Any:
-        """Get a user's following list."""
-        return self._main_api_get("/api/sns/web/v1/user/follow/followings", {
-            "user_id": user_id,
-            "cursor": cursor,
-            "num": 30,
-        })
+    # NOTE: XHS Web API does NOT expose follower/following list endpoints.
+    # These are mobile-only features. The follow/unfollow POST endpoints
+    # exist but return {code: -1} — may need additional parameters.
 
     def follow_user(self, user_id: str) -> Any:
         """Follow a user."""
@@ -540,25 +528,34 @@ class XhsClient:
             "num": 30,
         })
 
-    def get_user_likes(self, user_id: str, cursor: str = "") -> Any:
-        """Get a user's liked notes."""
-        return self._main_api_get("/api/sns/web/v1/user/like", {
-            "user_id": user_id,
+    # ─── P1: Notification Endpoints (reverse-engineered) ─────────────────
+
+    def get_unread_count(self) -> Any:
+        """Get unread notification counts.
+
+        Returns: {unread_count: int, likes: int, connections: int, mentions: int}
+        """
+        return self._main_api_get("/api/sns/web/unread_count", {})
+
+    def get_notification_mentions(self, cursor: str = "", num: int = 20) -> Any:
+        """Get comment and @mention notifications."""
+        return self._main_api_get("/api/sns/web/v1/you/mentions", {
+            "num": num,
             "cursor": cursor,
-            "num": 30,
         })
 
-    # ─── P1: Notification Endpoints ───────────────────────────────────────
-
-    def get_notifications(self, cursor: str = "", category: str = "likes") -> Any:
-        """Get notifications.
-
-        Categories: likes (点赞), comments (评论), follows (新关注), mentions (@我)
-        """
-        return self._main_api_get("/api/sns/web/v1/you/notifications", {
-            "category": category,
+    def get_notification_likes(self, cursor: str = "", num: int = 20) -> Any:
+        """Get like and collect notifications."""
+        return self._main_api_get("/api/sns/web/v1/you/likes", {
+            "num": num,
             "cursor": cursor,
-            "num": 20,
+        })
+
+    def get_notification_connections(self, cursor: str = "", num: int = 20) -> Any:
+        """Get new follower notifications."""
+        return self._main_api_get("/api/sns/web/v1/you/connections", {
+            "num": num,
+            "cursor": cursor,
         })
 
     # ─── HTML Fallback ────────────────────────────────────────────────────

@@ -68,6 +68,7 @@ cli.add_command(reading.topics)
 cli.add_command(reading.search_user)
 cli.add_command(reading.my_notes)
 cli.add_command(reading.notifications)
+cli.add_command(reading.unread)
 
 # ─── Interaction commands ────────────────────────────────────────────────────
 
@@ -79,12 +80,9 @@ cli.add_command(interactions.delete_comment)
 
 # ─── Social commands ────────────────────────────────────────────────────────
 
-cli.add_command(social.followers)
-cli.add_command(social.following)
 cli.add_command(social.follow)
 cli.add_command(social.unfollow)
 cli.add_command(social.user_collects)
-cli.add_command(social.user_likes)
 
 # ─── Creator commands ───────────────────────────────────────────────────────
 
