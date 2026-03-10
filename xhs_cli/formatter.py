@@ -62,10 +62,11 @@ def maybe_print_structured(data: Any, *, as_json: bool, as_yaml: bool) -> bool:
     fmt = resolve_output_format(as_json=as_json, as_yaml=as_yaml)
     if not fmt:
         return False
+    payload = _normalize_success_payload(data)
     if fmt == "json":
-        print_json(data)
+        print_json(payload)
     else:
-        print_yaml(data)
+        print_yaml(payload)
     return True
 
 
@@ -91,6 +92,13 @@ def error_payload(code: str, message: str, *, details: Any | None = None) -> dic
         "schema_version": _SCHEMA_VERSION,
         "error": error,
     }
+
+
+def _normalize_success_payload(data: Any) -> Any:
+    """Wrap plain structured data in the shared agent success schema."""
+    if isinstance(data, dict) and data.get("schema_version") == _SCHEMA_VERSION and "ok" in data:
+        return data
+    return success_payload(data)
 
 
 def print_error(message: str) -> None:
