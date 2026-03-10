@@ -4,6 +4,7 @@ import yaml
 from click.testing import CliRunner
 
 from xhs_cli.cli import cli
+from xhs_cli.exceptions import NoCookieError
 
 runner = CliRunner()
 
@@ -129,3 +130,17 @@ class TestCliBasic:
         payload = yaml.safe_load(result.output)
         assert payload["ok"] is True
         assert payload["data"]["user"]["username"] == "alice001"
+
+    def test_read_error_yaml_when_not_logged_in(self, monkeypatch):
+        monkeypatch.setenv("OUTPUT", "auto")
+        monkeypatch.setattr(
+            "xhs_cli.commands.reading._get_client",
+            lambda ctx: (_ for _ in ()).throw(NoCookieError("need login")),
+        )
+
+        result = runner.invoke(cli, ["read", "abc", "--yaml"])
+
+        assert result.exit_code != 0
+        payload = yaml.safe_load(result.output)
+        assert payload["ok"] is False
+        assert payload["error"]["code"] == "api_error"

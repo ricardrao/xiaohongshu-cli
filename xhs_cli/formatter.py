@@ -101,8 +101,37 @@ def _normalize_success_payload(data: Any) -> Any:
     return success_payload(data)
 
 
+def emit_error(
+    code: str,
+    message: str,
+    *,
+    as_json: bool | None = None,
+    as_yaml: bool | None = None,
+    details: Any | None = None,
+) -> bool:
+    """Emit a structured error when the active output mode is machine-readable."""
+    if as_json is None or as_yaml is None:
+        ctx = click.get_current_context(silent=True)
+        params = ctx.params if ctx is not None else {}
+        as_json = bool(params.get("as_json", False)) if as_json is None else as_json
+        as_yaml = bool(params.get("as_yaml", False)) if as_yaml is None else as_yaml
+
+    fmt = resolve_output_format(as_json=bool(as_json), as_yaml=bool(as_yaml))
+    if fmt is None:
+        return False
+
+    payload = error_payload(code, message, details=details)
+    if fmt == "json":
+        print_json(payload)
+    else:
+        print_yaml(payload)
+    return True
+
+
 def print_error(message: str) -> None:
     """Print error message."""
+    if emit_error("api_error", message):
+        return
     error_console.print(f"[red]✗[/red] {message}")
 
 
