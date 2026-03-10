@@ -159,16 +159,28 @@ def format_count(n: int | str) -> str:
     return str(n)
 
 
-def extract_note_id(id_or_url: str) -> str:
-    """Extract note ID from URL or return as-is."""
+def parse_note_url(id_or_url: str) -> tuple[str, str]:
+    """Extract note ID and xsec_token from URL or plain ID.
+
+    Returns (note_id, xsec_token). xsec_token may be empty if not in URL.
+    """
     if "xiaohongshu.com" in id_or_url:
-        # https://www.xiaohongshu.com/explore/<id>?...
-        # https://www.xiaohongshu.com/discovery/item/<id>?...
-        parts = id_or_url.rstrip("/").split("/")
-        # Get last path segment, strip query params
-        last = parts[-1].split("?")[0]
-        return last
-    return id_or_url
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(id_or_url)
+        # Extract note ID from path
+        parts = parsed.path.rstrip("/").split("/")
+        note_id = parts[-1]
+        # Extract xsec_token from query params
+        qs = parse_qs(parsed.query)
+        xsec_token = qs.get("xsec_token", [""])[0]
+        return note_id, xsec_token
+    return id_or_url, ""
+
+
+def extract_note_id(id_or_url: str) -> str:
+    """Extract note ID from URL or return as-is (drops query params)."""
+    note_id, _ = parse_note_url(id_or_url)
+    return note_id
 
 
 def render_user_info(data: dict[str, Any]) -> None:

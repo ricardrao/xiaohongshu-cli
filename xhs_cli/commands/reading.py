@@ -6,6 +6,7 @@ from ..formatter import (
     console,
     extract_note_id,
     maybe_print_structured,
+    parse_note_url,
     print_info,
     render_comments,
     render_creator_notes,
@@ -69,10 +70,12 @@ def search(ctx, keyword: str, sort: str, note_type: str, page: int, as_json: boo
 @click.pass_context
 def read(ctx, id_or_url: str, xsec_token: str, as_json: bool, as_yaml: bool):
     """Read a note by ID or URL."""
-    note_id = extract_note_id(id_or_url)
+    note_id, url_token = parse_note_url(id_or_url)
+    # --xsec-token flag overrides; otherwise use token from URL
+    token = xsec_token or url_token
 
     try:
-        data = run_client_action(ctx, lambda client: client.get_note_by_id(note_id, xsec_token=xsec_token))
+        data = run_client_action(ctx, lambda client: client.get_note_by_id(note_id, xsec_token=token))
 
         if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
             render_note(data)
@@ -88,13 +91,14 @@ def read(ctx, id_or_url: str, xsec_token: str, as_json: bool, as_yaml: bool):
 @structured_output_options
 @click.pass_context
 def comments(ctx, id_or_url: str, cursor: str, xsec_token: str, as_json: bool, as_yaml: bool):
-    """Get comments for a note."""
-    note_id = extract_note_id(id_or_url)
+    """View comments on a note."""
+    note_id, url_token = parse_note_url(id_or_url)
+    token = xsec_token or url_token
 
     try:
         data = run_client_action(
             ctx,
-            lambda client: client.get_comments(note_id, cursor=cursor, xsec_token=xsec_token),
+            lambda client: client.get_comments(note_id, cursor=cursor, xsec_token=token),
         )
 
         if not maybe_print_structured(data, as_json=as_json, as_yaml=as_yaml):
