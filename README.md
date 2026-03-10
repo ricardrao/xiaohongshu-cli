@@ -24,7 +24,7 @@ A CLI for Xiaohongshu (小红书) — search, read, interact, and post via rever
 - 👍 **Interactions** — like, favorite, comment, reply, delete
 - ✍️ **Creator** — post image notes, my-notes list, delete
 - 🔔 **Notifications** — unread count, mentions, likes, new followers
-- 🛡️ **Anti-detection** — `sec-ch-ua` headers, request delay, auto-retry with exponential backoff
+- 🛡️ **Anti-detection** — consistent macOS Chrome fingerprint, `sec-ch-ua` alignment, session-stable browser identity, Gaussian jitter, captcha cooldown, exponential backoff
 - 📊 **Structured output** — commands support `--yaml` and `--json`; non-TTY stdout defaults to YAML
 - 📦 **Stable envelope** — see [SCHEMA.md](./SCHEMA.md) for `ok/schema_version/data/error`
 
@@ -68,8 +68,10 @@ xhs topics "美食"                      # Search hashtags/topics
 
 # ─── Reading ──────────────────────────────────────
 xhs read <note_id>                     # Read a note
-xhs read https://xiaohongshu.com/...   # Read by URL
-xhs comments <note_id>                 # View comments
+xhs read "https://www.xiaohongshu.com/explore/xxx?xsec_token=yyy"  # Read by URL (auto-extracts xsec_token)
+xhs comments <note_id>                 # View comments (first page)
+xhs comments <note_id> --all           # Fetch ALL comments (auto-paginate)
+xhs comments "<url>" --all --json      # All comments from URL, as JSON
 xhs sub-comments <note_id> <cmt_id>   # View replies to a comment
 xhs user <user_id>                     # User profile
 xhs user-posts <user_id>              # User's published notes
@@ -135,12 +137,25 @@ Saved cookies are valid for **7 days** by default. After that, the client automa
 
 ## Rate Limiting & Anti-Detection
 
-xiaohongshu-cli includes built-in rate-limit protection and anti-detection:
+xiaohongshu-cli includes comprehensive anti-risk-control measures designed to minimize detection:
 
-- **Request delay**: 1 second minimum between consecutive API calls (with random jitter)
-- **Auto-retry**: Automatically retries on HTTP 429/5xx and network errors (up to 3 times, exponential backoff)
-- **Browser fingerprint**: Sends `sec-ch-ua`, `sec-fetch-*`, and `accept-language` headers matching Edge 142
-- **Signed requests**: All API calls use `x-s` / `x-t` signatures (reverse-engineered from web client)
+### Request Timing
+- **Gaussian jitter**: Delays between requests use a truncated Gaussian distribution (not fixed intervals) to mimic natural browsing patterns
+- **Random long pauses**: ~5% of requests include an additional 2-5 second delay simulating reading behavior
+- **Auto-retry**: Exponential backoff on HTTP 429/5xx and network errors (up to 3 retries)
+
+### Browser Fingerprint Consistency
+- **UA/Platform alignment**: User-Agent, `sec-ch-ua`, `sec-ch-ua-platform`, and fingerprint fields are all consistent (macOS Chrome)
+- **Session-stable identity**: GPU, screen resolution, CPU cores, and other hardware fingerprint values are generated once per session and reused across all requests (real browsers don't change hardware mid-session)
+- **macOS-native values**: GPU vendors (Apple M1/M2/M3, Intel Iris), Retina screen resolutions, `MacIntel` platform — all matching a real macOS browser
+
+### Captcha Cooldown
+- **Progressive backoff**: On captcha trigger (HTTP 461/471), automatically sleeps 5→10→20→30 seconds with increasing delays
+- **Adaptive rate limiting**: Request delay is permanently doubled after a captcha event to reduce future risk
+
+### Signed Requests
+- All API calls use `x-s` / `x-s-common` / `x-t` signatures (reverse-engineered from web client)
+- `x-b3-traceid` and `x-xray-traceid` for distributed tracing consistency
 
 ## Structured Output
 
@@ -181,21 +196,22 @@ clawhub install xiaohongshu-cli
 ```text
 xhs_cli/
 ├── __init__.py
-├── cli.py           # Click entry point
-├── client.py        # XHS API client (signing, retry, rate-limit)
-├── cookies.py       # Cookie extraction & TTL management
-├── signing.py       # Main API signature generation
-├── creator_signing.py  # Creator API signature generation
-├── constants.py     # URLs, User-Agent, SDK version
-├── exceptions.py    # Structured exception hierarchy
-├── formatter.py     # Output formatting & schema envelope
+├── cli.py              # Click entry point & command registration
+├── client.py           # XHS API client (signing, retry, rate-limit, anti-detection)
+├── cookies.py          # Cookie extraction, TTL management, auto-refresh
+├── signing.py          # Main API x-s / x-s-common signature generation
+├── creator_signing.py  # Creator API AES-128-CBC signature
+├── constants.py        # URLs, User-Agent, Chrome version, SDK config
+├── exceptions.py       # Structured exception hierarchy (6 error types)
+├── formatter.py        # Output formatting, schema envelope, Rich rendering
 └── commands/
-    ├── _common.py   # Shared CLI helpers
-    ├── auth.py      # login/logout/status/whoami
-    ├── reading.py   # search/read/comments/user
-    ├── interactions.py  # like/favorite/comment/reply
-    ├── creator.py   # post/my-notes/delete
-    └── notifications.py  # unread/notifications
+    ├── _common.py      # Shared CLI helpers (structured_output_options, etc.)
+    ├── auth.py         # login/logout/status/whoami
+    ├── reading.py      # search/read/comments/user/feed/hot/topics
+    ├── interactions.py  # like/favorite/comment/reply/delete-comment
+    ├── social.py       # follow/unfollow/favorites
+    ├── creator.py      # post/my-notes/delete
+    └── notifications.py # unread/notifications
 ```
 
 ## Development
@@ -242,7 +258,7 @@ Your cookies have expired. Run `xhs login` to refresh.
 
 **Q: Requests are slow**
 
-The built-in rate-limit delay (1s between requests) is intentional to avoid triggering XHS's anti-scraping. You can reduce it at your own risk by passing a shorter timeout in code, but this may lead to IP blocks.
+The built-in Gaussian jitter delay (~1-1.5s between requests) is intentional to mimic natural browsing and avoid triggering XHS's risk control. Aggressive request patterns may lead to captcha triggers or IP blocks.
 
 ---
 
@@ -263,7 +279,7 @@ The built-in rate-limit delay (1s between requests) is intentional to avoid trig
 - 👍 **互动** — 点赞、收藏、评论、回复、删除
 - ✍️ **创作者** — 发布图文笔记、我的笔记列表、删除
 - 🔔 **通知** — 未读数、@、点赞、新关注
-- 🛡️ **反风控** — `sec-ch-ua` 请求头、请求间隔控制、指数退避自动重试
+- 🛡️ **反风控** — macOS Chrome 指纹一致性、session 级浏览器身份持久化、高斯抖动延迟、验证码自动冷却、指数退避重试
 - 📊 **结构化输出** — `--yaml` / `--json`，非 TTY 默认输出 YAML
 - 📦 **稳定 envelope** — 参见 [SCHEMA.md](./SCHEMA.md)
 
@@ -302,28 +318,46 @@ xhs topics "美食"                      # 搜索话题
 
 # 阅读
 xhs read <note_id>                     # 阅读笔记
-xhs comments <note_id>                 # 查看评论
+xhs read "https://...?xsec_token=..."  # 粘贴网页 URL 直接阅读（自动提取 token）
+xhs comments <note_id>                 # 查看评论（第一页）
+xhs comments <note_id> --all           # 获取所有评论（自动翻页）
+xhs comments "<url>" --all --json      # 从 URL 获取全部评论，JSON 格式
+xhs sub-comments <note_id> <cmt_id>   # 查看评论的回复
 xhs user <user_id>                     # 用户主页
 xhs user-posts <user_id>              # 用户发布的笔记
 
 # 发现
 xhs feed                              # 推荐 Feed
 xhs hot -c food                       # 热门笔记（按分类）
+xhs hot -c travel                     # 分类: fashion, food, cosmetics, movie, career,
+                                      #       love, home, gaming, travel, fitness
 
 # 社交
-xhs favorites                          # 我的收藏
+xhs favorites                          # 我的收藏（自动识别当前用户）
 xhs favorites <user_id>                # 其他用户的收藏
 xhs follow <user_id>                   # 关注
 xhs unfollow <user_id>                 # 取消关注
+
+# 互动
+xhs like <note_id>                     # 点赞
+xhs like <note_id> --undo              # 取消点赞
+xhs favorite <note_id>                 # 收藏
+xhs unfavorite <note_id>               # 取消收藏
+xhs comment <note_id> -c "好棒！"      # 发评论
+xhs reply <note_id> --comment-id X -c "谢谢"  # 回复评论
+xhs delete-comment <note_id> <cmt_id>  # 删除自己的评论
 
 # 创作者
 xhs my-notes                           # 我的笔记列表
 xhs post --title "标题" --body "正文" --images img.jpg  # 发布笔记
 xhs delete <note_id>                   # 删除笔记
+xhs delete <note_id> -y                # 跳过确认
 
 # 通知
 xhs unread                             # 未读数
-xhs notifications --type likes         # 点赞通知
+xhs notifications                      # 评论和 @ 通知
+xhs notifications --type likes         # 赞和收藏通知
+xhs notifications --type connections   # 新增关注通知
 ```
 
 ## 认证策略
@@ -343,7 +377,7 @@ Cookie 保存后有效期 **7 天**，超时后自动尝试从浏览器刷新。
 - `NeedVerifyError` — 触发了验证码，请到浏览器中完成验证后重试
 - `IpBlockedError` — IP 被限制，尝试切换网络（手机热点或 VPN）
 - `SessionExpiredError` — Cookie 过期，执行 `xhs login` 刷新
-- 请求较慢是正常的 — 内置 1 秒请求间隔是为了避免触发反爬
+- 请求较慢是正常的 — 内置高斯随机延迟（~1-1.5s）是为了模拟人类浏览行为，避免触发风控
 
 ## 作为 AI Agent Skill 使用
 

@@ -80,8 +80,9 @@ Payloads live under `.data`.
 | Command | Description | Example |
 |---------|-------------|---------|
 | `xhs search <keyword>` | Search notes | `xhs search "美食" --sort popular --type video` |
-| `xhs read <id_or_url>` | Read a note | `xhs read abc123 --json` |
-| `xhs comments <id_or_url>` | Get comments | `xhs comments abc123` |
+| `xhs read <id_or_url>` | Read a note (URL auto-extracts xsec_token) | `xhs read "https://...?xsec_token=xxx"` |
+| `xhs comments <id_or_url>` | Get comments (first page) | `xhs comments abc123` |
+| `xhs comments <id_or_url> --all` | Get ALL comments (auto-paginate) | `xhs comments abc123 --all --json` |
 | `xhs sub-comments <note_id> <comment_id>` | Get replies to comment | `xhs sub-comments abc 123` |
 | `xhs user <user_id>` | View user profile | `xhs user 5f2e123` |
 | `xhs user-posts <user_id>` | List user's notes | `xhs user-posts 5f2e123 --cursor ""` |
@@ -159,6 +160,15 @@ xhs unread --json | jq '.data'
 xhs notifications --type mentions --json | jq '.data.message_list[:5]'
 ```
 
+### Analyze all comments on a note
+
+```bash
+# Fetch ALL comments and analyze themes
+xhs comments "$NOTE_URL" --all --json | jq '.data.comments | length'
+# Count questions
+xhs comments "$NOTE_URL" --all --json | jq '[.data.comments[] | select(.content | test("[\uff1f?]"))] | length'
+```
+
 ### Daily reading workflow
 
 ```bash
@@ -168,6 +178,14 @@ xhs feed --yaml
 # Browse trending by category
 xhs hot -c food --yaml
 xhs hot -c travel --yaml
+```
+
+### URL to insights pipeline
+
+```bash
+# User pastes a URL → read + all comments
+xhs read "https://www.xiaohongshu.com/explore/xxx?xsec_token=yyy" --json
+xhs comments "https://www.xiaohongshu.com/explore/xxx?xsec_token=yyy" --all --json
 ```
 
 ## Hot Categories
@@ -190,8 +208,16 @@ Structured error codes returned in the `error.code` field:
 - **No video download** — cannot download note images/videos
 - **No DMs** — cannot access private messages
 - **No live streaming** — live features not supported
+- **No following/followers list** — XHS web API doesn't expose these endpoints
 - **Single account** — one set of cookies at a time
-- **Rate limited** — built-in 1s delay between requests; aggressive usage may trigger IP blocks
+- **Rate limited** — built-in Gaussian jitter delay (~1-1.5s) between requests; aggressive usage may trigger captchas or IP blocks
+
+## Anti-Detection Notes for Agents
+
+- **Do NOT parallelize requests** — the built-in rate-limit delay exists for account safety
+- **Captcha recovery**: if `NeedVerifyError` occurs, the client auto-cools-down with increasing delays (5s→10s→20s→30s). Ask the user to complete captcha in browser before retrying
+- **Batch operations**: when doing bulk work (e.g., reading many notes), add `time.sleep()` between CLI calls
+- **Session stability**: all requests in a session share a consistent browser fingerprint. Restarting the CLI creates a new fingerprint session
 
 ## Safety Notes
 
