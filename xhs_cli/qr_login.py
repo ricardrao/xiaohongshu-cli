@@ -101,7 +101,7 @@ def _display_qr_in_terminal(data: str) -> bool:
 
 def qrcode_login(
     *,
-    on_status: "callable[[str], None] | None" = None,
+    on_status: callable[[str], None] | None = None,
     timeout_s: int = POLL_TIMEOUT_S,
 ) -> dict[str, str]:
     """Run the QR code login flow.
@@ -153,7 +153,7 @@ def qrcode_login(
         # 4. Display QR in terminal
         _print("\n📱 Scan the QR code below with the Xiaohongshu app:\n")
         if not _display_qr_in_terminal(qr_url):
-            _print(f"⚠️  Install 'qrcode' for terminal rendering: pip install qrcode")
+            _print("⚠️  Install 'qrcode' for terminal rendering: pip install qrcode")
             _print(f"QR URL: {qr_url}")
         _print("\n⏳ Waiting for QR code scan...")
 

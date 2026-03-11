@@ -16,7 +16,7 @@ A CLI for Xiaohongshu (小红书) — search, read, interact, and post via rever
 
 ## Features
 
-- 🔐 **Auth** — auto-extract browser cookies, status check, whoami
+- 🔐 **Auth** — auto-extract browser cookies, QR code login, status check, whoami
 - 🔍 **Search** — notes by keyword, user search, topic search
 - 📖 **Reading** — note detail, comments, sub-comments, user profiles
 - 📰 **Feed** — recommendation feed, hot/trending by category
@@ -53,6 +53,7 @@ uv sync
 ```bash
 # ─── Auth ─────────────────────────────────────────
 xhs login                             # Extract cookies from browser
+xhs login --qrcode                    # Scan QR with Xiaohongshu app (no browser needed)
 xhs status                            # Check login status
 xhs whoami                            # Detailed profile (fans, likes, etc)
 xhs whoami --json                     # Structured JSON envelope
@@ -116,13 +117,14 @@ xhs notifications --type connections   # 新增关注 notifications
 
 ## Authentication
 
-xiaohongshu-cli uses a 2-tier authentication strategy:
+xiaohongshu-cli supports multiple authentication methods:
 
 1. **Saved cookies** — loads from `~/.xiaohongshu-cli/cookies.json`
 2. **Browser cookies** — auto-detects installed browsers and extracts cookies (supports Chrome, Arc, Edge, Firefox, Safari, Brave, Chromium, Opera, Vivaldi, and more)
+3. **QR code login** — scan with Xiaohongshu app, no browser needed (`xhs login --qrcode`)
 
 `xhs login` automatically tries all installed browsers and uses the first one with valid cookies.
-Use `--cookie-source <browser>` to specify a browser explicitly.
+Use `--cookie-source <browser>` to specify a browser explicitly, or `--qrcode` for QR code login.
 Other authenticated commands automatically retry once with fresh browser cookies when the saved session has expired.
 
 ### Cookie TTL
@@ -203,6 +205,7 @@ xhs_cli/
 ├── creator_signing.py  # Creator API AES-128-CBC signature
 ├── constants.py        # URLs, User-Agent, Chrome version, SDK config
 ├── exceptions.py       # Structured exception hierarchy (6 error types)
+├── qr_login.py         # QR code login (terminal QR + activate API)
 ├── formatter.py        # Output formatting, schema envelope, Rich rendering
 └── commands/
     ├── _common.py      # Shared CLI helpers (structured_output_options, etc.)
@@ -271,7 +274,7 @@ The built-in Gaussian jitter delay (~1-1.5s between requests) is intentional to 
 
 ## 功能特性
 
-- 🔐 **认证** — 自动提取浏览器 Cookie，状态检查，用户信息
+- 🔐 **认证** — 自动提取浏览器 Cookie，二维码扫码登录，状态检查，用户信息
 - 🔍 **搜索** — 按关键词搜索笔记、用户、话题
 - 📖 **阅读** — 笔记详情、评论、子评论、用户主页
 - 📰 **发现** — 推荐 Feed、按分类浏览热门
@@ -306,6 +309,7 @@ uv sync
 ```bash
 # 认证
 xhs login                             # 从浏览器提取 Cookie
+xhs login --qrcode                    # 二维码扫码登录（无需浏览器）
 xhs status                            # 检查登录状态
 xhs whoami                            # 查看用户资料
 xhs logout                            # 清除缓存的 Cookie
@@ -363,14 +367,15 @@ xhs notifications --type connections   # 新增关注通知
 
 ## 认证策略
 
-xiaohongshu-cli 采用两级认证策略：
+xiaohongshu-cli 支持多种认证方式：
 
 1. **已保存 Cookie** — 从 `~/.xiaohongshu-cli/cookies.json` 加载
 2. **浏览器 Cookie** — 自动检测已安装浏览器并提取（支持 Chrome、Arc、Edge、Firefox、Safari、Brave、Chromium、Opera、Vivaldi 等）
+3. **二维码扫码登录** — 用小红书 App 扫码，无需浏览器（`xhs login --qrcode`）
 
 Cookie 保存后有效期 **7 天**，超时后自动尝试从浏览器刷新。
 
-`xhs login` 会自动尝试所有已安装浏览器，使用第一个有有效 Cookie 的浏览器。也可用 `--cookie-source <browser>` 指定浏览器。其他需认证命令在 session 过期时会自动重试一次。
+`xhs login` 会自动尝试所有已安装浏览器，使用第一个有有效 Cookie 的浏览器。也可用 `--cookie-source <browser>` 指定浏览器，或 `--qrcode` 使用二维码登录。其他需认证命令在 session 过期时会自动重试一次。
 
 ## 常见问题
 

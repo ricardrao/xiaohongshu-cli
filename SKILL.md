@@ -2,7 +2,7 @@
 name: xiaohongshu-cli
 description: Use xiaohongshu-cli for ALL Xiaohongshu (Little Red Book, 小红书) operations — searching notes, reading content, browsing users, liking, collecting, commenting, following, and posting. Invoke whenever the user requests any Xiaohongshu interaction.
 author: jackwener
-version: "1.0.0"
+version: "0.3.0"
 tags:
   - xiaohongshu
   - xhs
@@ -15,7 +15,7 @@ tags:
 # xiaohongshu-cli — Xiaohongshu CLI Tool
 
 **Binary:** `xhs`
-**Credentials:** browser cookies (auto-extracted via `--cookie-source`)
+**Credentials:** browser cookies (auto-extracted) or QR code login (`--qrcode`)
 
 ## Setup
 
@@ -36,7 +36,7 @@ xhs status --yaml >/dev/null && echo "AUTH_OK" || echo "AUTH_NEEDED"
 ```
 
 If `AUTH_OK`, skip to [Command Reference](#command-reference).
-If `AUTH_NEEDED`, proceed to Step 1.
+If `AUTH_NEEDED`, proceed to Step 1. Prefer `--qrcode` for environments without browser access.
 
 ### Step 1: Guide user to authenticate
 
@@ -126,8 +126,8 @@ Payloads live under `.data`.
 
 | Command | Description |
 |---------|-------------|
-| `xhs login` | Extract cookies from browser |
-| `xhs login --qrcode` | Login via QR code (scan with app) |
+| `xhs login` | Extract cookies from browser (auto-detect) |
+| `xhs login --qrcode` | Login via QR code — terminal QR + activate API (no browser needed) |
 | `xhs status` | Check authentication status |
 | `xhs logout` | Clear cached cookies |
 | `xhs whoami` | Show current user profile |
@@ -180,6 +180,15 @@ xhs feed --yaml
 # Browse trending by category
 xhs hot -c food --yaml
 xhs hot -c travel --yaml
+```
+
+### QR code login (headless environments)
+
+```bash
+# When browser cookie extraction is not available
+xhs login --qrcode
+# → Renders QR in terminal using Unicode half-blocks
+# → Scan with Xiaohongshu app → confirm → done
 ```
 
 ### URL to insights pipeline
