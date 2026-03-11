@@ -59,6 +59,7 @@ def _build_saved_cookies(a1: str, webid: str, payload: dict[str, str]) -> dict[s
         cookies["web_session_sec"] = payload["secure_session"]
     return cookies
 
+
 def _generate_a1() -> str:
     """Generate a fresh a1 cookie value (52 hex chars with embedded timestamp)."""
     prefix = "".join(random.choices("0123456789abcdef", k=24))
