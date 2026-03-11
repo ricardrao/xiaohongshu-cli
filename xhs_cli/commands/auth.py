@@ -1,10 +1,13 @@
 """Authentication commands: login, status, logout."""
 
+import time
+
 import click
 
 from ..client import XhsClient
 from ..command_normalizers import normalize_xhs_user_payload
 from ..cookies import clear_cookies, get_cookies
+from ..exceptions import XhsApiError
 from ..formatter import (
     console,
     maybe_print_structured,
@@ -18,6 +21,14 @@ from ._common import handle_errors, run_client_action, structured_output_options
 def _emit_payload(data: dict[str, object], *, as_json: bool, as_yaml: bool) -> bool:
     """Emit a structured success payload when requested."""
     return maybe_print_structured(success_payload(data), as_json=as_json, as_yaml=as_yaml)
+
+
+def _is_valid_login(user: dict[str, object]) -> bool:
+    """Check whether the normalized user payload represents a real logged-in session."""
+    if user.get("guest"):
+        return False
+    nickname = user.get("nickname", "")
+    return bool(nickname and nickname != "Unknown")
 
 
 def _print_login_success(user: dict[str, object]) -> None:
@@ -91,10 +102,22 @@ def login(ctx, cookie_source: str | None, as_json: bool, as_yaml: bool, use_qrco
         browser, cookies = get_cookies(cookie_source, force_refresh=True)
         print_success(f"Cookies extracted from {browser}")
 
-        # Verify by fetching user info
+        # Verify by fetching user info, retry once if session not yet propagated
         with XhsClient(cookies) as client:
             info = client.get_self_info()
         user = normalize_xhs_user_payload(info)
+
+        if not _is_valid_login(user):
+            time.sleep(2.5)
+            with XhsClient(cookies) as client:
+                info = client.get_self_info()
+            user = normalize_xhs_user_payload(info)
+
+        if not _is_valid_login(user):
+            raise XhsApiError(
+                "Browser cookies were extracted, but the session appears invalid "
+                "(guest or incomplete profile). Try: xhs login --qrcode"
+            )
 
         if not _emit_payload({"authenticated": True, "user": user}, as_json=as_json, as_yaml=as_yaml):
             _print_login_success(user)
