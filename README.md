@@ -40,6 +40,15 @@ uv tool install xiaohongshu-cli
 pipx install xiaohongshu-cli
 ```
 
+Upgrade to the latest version:
+
+```bash
+uv tool upgrade xiaohongshu-cli
+# Or: pipx upgrade xiaohongshu-cli
+```
+
+> **Tip:** Upgrade regularly to avoid unexpected errors from outdated API handling.
+
 From source:
 
 ```bash
@@ -295,6 +304,15 @@ uv tool install xiaohongshu-cli
 # 或者：pipx
 pipx install xiaohongshu-cli
 ```
+
+升级到最新版本：
+
+```bash
+uv tool upgrade xiaohongshu-cli
+# 或：pipx upgrade xiaohongshu-cli
+```
+
+> **提示：** 建议定期升级，避免因版本过旧导致的 API 调用异常。
 
 从源码安装：
 

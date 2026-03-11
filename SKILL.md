@@ -23,6 +23,10 @@ tags:
 # Install (requires Python 3.10+)
 uv tool install xiaohongshu-cli
 # Or: pipx install xiaohongshu-cli
+
+# Upgrade to latest (recommended to avoid API errors)
+uv tool upgrade xiaohongshu-cli
+# Or: pipx upgrade xiaohongshu-cli
 ```
 
 ## Authentication
