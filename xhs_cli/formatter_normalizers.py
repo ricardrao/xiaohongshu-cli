@@ -72,6 +72,7 @@ def normalize_note_summary(item: dict[str, Any]) -> dict[str, Any] | None:
         "liked": str(interact.get("liked_count", "")),
         "note_type": "video" if note_card.get("type") == "video" else "image",
         "note_id": item.get("id", note_card.get("note_id", "")),
+        "xsec_token": item.get("xsec_token", note_card.get("xsec_token", "")),
     }
 
 
@@ -107,6 +108,7 @@ def normalize_feed(data: dict[str, Any]) -> list[dict[str, Any]]:
             "author": user.get("nickname", ""),
             "liked": str(interact.get("liked_count", "")),
             "note_id": item.get("id", ""),
+            "xsec_token": item.get("xsec_token", note_card.get("xsec_token", "")),
         })
     return normalized
 

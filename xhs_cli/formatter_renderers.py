@@ -21,6 +21,15 @@ from .formatter_normalizers import (
     normalize_users,
 )
 
+HOME_URL = "https://www.xiaohongshu.com"
+
+
+def _build_note_url(note_id: str, xsec_token: str = "", source: str = "pc_feed") -> str:
+    """Build a full note URL, including xsec_token when available."""
+    if xsec_token:
+        return f"{HOME_URL}/explore/{note_id}?xsec_token={xsec_token}&xsec_source={source}"
+    return note_id  # bare ID fallback
+
 
 def render_user_info(data: dict[str, Any]) -> None:
     """Render user profile info as a Rich panel."""
@@ -117,11 +126,12 @@ def render_search_results(data: dict[str, Any]) -> None:
     table.add_column("作者", width=10)
     table.add_column("❤️", justify="right", width=8)
     table.add_column("类型", width=4)
-    table.add_column("ID", style="dim", width=24)
+    table.add_column("URL", style="dim", no_wrap=True)
 
     for i, item in enumerate(items, 1):
         note_type = "📹" if item["note_type"] == "video" else "📷"
-        table.add_row(str(i), item["title"], item["author"], item["liked"], note_type, item["note_id"])
+        url = _build_note_url(item["note_id"], item.get("xsec_token", ""), source="pc_search")
+        table.add_row(str(i), item["title"], item["author"], item["liked"], note_type, url)
 
     console.print(table)
     if has_next:
@@ -162,10 +172,11 @@ def render_feed(data: dict[str, Any]) -> None:
     table.add_column("标题", width=30)
     table.add_column("作者", width=10)
     table.add_column("❤️", justify="right", width=8)
-    table.add_column("ID", style="dim", width=24)
+    table.add_column("URL", style="dim", no_wrap=True)
 
     for i, item in enumerate(items, 1):
-        table.add_row(str(i), item["title"], item["author"], item["liked"], item["note_id"])
+        url = _build_note_url(item["note_id"], item.get("xsec_token", ""), source="pc_feed")
+        table.add_row(str(i), item["title"], item["author"], item["liked"], url)
 
     console.print(table)
 

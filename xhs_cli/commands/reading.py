@@ -19,6 +19,23 @@ from ..formatter import (
 )
 from ._common import exit_for_error, handle_command, run_client_action, structured_output_options
 
+
+# ─── Token propagation ─────────────────────────────────────────────────────
+
+def _cache_tokens_from_items(data: dict) -> None:
+    """Auto-cache xsec_token from search/feed API results.
+
+    Each note item may carry its own xsec_token bound to the source
+    (search, feed, explore).  Caching them lets a subsequent
+    `xhs read <note_id>` use the correct token automatically.
+    """
+    for item in data.get("items", []):
+        note_card = item.get("note_card", {})
+        note_id = item.get("id", note_card.get("note_id", ""))
+        token = item.get("xsec_token", note_card.get("xsec_token", ""))
+        if note_id and token:
+            cache_xsec_token(note_id, token)
+
 # ─── Sort mapping ────────────────────────────────────────────────────────────
 
 SORT_MAP = {
@@ -43,14 +60,19 @@ TYPE_MAP = {
 @click.pass_context
 def search(ctx, keyword: str, sort: str, note_type: str, page: int, as_json: bool, as_yaml: bool):
     """Search notes by keyword."""
-    handle_command(
-        ctx,
-        action=lambda client: client.search_notes(
+    def _search_action(client):
+        result = client.search_notes(
             keyword=keyword,
             page=page,
             sort=SORT_MAP[sort],
             note_type=TYPE_MAP[note_type],
-        ),
+        )
+        _cache_tokens_from_items(result)
+        return result
+
+    handle_command(
+        ctx,
+        action=_search_action,
         render=render_search_results,
         as_json=as_json,
         as_yaml=as_yaml,
@@ -154,9 +176,14 @@ def user_posts(ctx, user_id: str, cursor: str, as_json: bool, as_yaml: bool):
 @click.pass_context
 def feed(ctx, as_json: bool, as_yaml: bool):
     """Browse the recommendation feed."""
+    def _feed_action(client):
+        result = client.get_home_feed()
+        _cache_tokens_from_items(result)
+        return result
+
     handle_command(
         ctx,
-        action=lambda client: client.get_home_feed(),
+        action=_feed_action,
         render=render_feed,
         as_json=as_json,
         as_yaml=as_yaml,
@@ -235,9 +262,14 @@ HOT_CATEGORIES = {
 @click.pass_context
 def hot(ctx, category: str, as_json: bool, as_yaml: bool):
     """Browse hot/trending notes by category."""
+    def _hot_action(client):
+        result = client.get_hot_feed(HOT_CATEGORIES[category])
+        _cache_tokens_from_items(result)
+        return result
+
     handle_command(
         ctx,
-        action=lambda client: client.get_hot_feed(HOT_CATEGORIES[category]),
+        action=_hot_action,
         render=render_feed,
         as_json=as_json,
         as_yaml=as_yaml,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import mimetypes
 import random
 import re
@@ -11,7 +12,10 @@ from typing import Any
 
 from .constants import CREATOR_HOST, HOME_URL, UPLOAD_HOST, USER_AGENT
 from .cookies import cache_xsec_token, cookies_to_string, get_cached_xsec_token
-from .exceptions import UnsupportedOperationError, XhsApiError
+from .exceptions import NeedVerifyError, UnsupportedOperationError, XhsApiError
+from .html_parser import extract_note_from_html
+
+logger = logging.getLogger(__name__)
 
 
 def _generate_search_id() -> str:
@@ -127,11 +131,25 @@ class ReadingEndpointsMixin:
             "xsec_token": xsec_token,
         })
 
+    def get_note_from_html(self, note_id: str, xsec_token: str = "") -> dict[str, Any]:
+        """Fetch note by parsing server-rendered HTML (no xsec_token required)."""
+        html = self._fetch_note_html(note_id, xsec_token=xsec_token)
+        return extract_note_from_html(html, note_id)
+
     def get_note_detail(self, note_id: str, xsec_token: str = "") -> dict[str, Any]:
+        """Read a note via the best available channel.
+
+        Strategy:
+          - Has xsec_token → try feed API first, fall back to HTML on error
+          - No xsec_token  → go straight to HTML (feed API would reject)
+        """
         token = xsec_token or get_cached_xsec_token(note_id)
         if token:
-            return self.get_note_by_id(note_id, xsec_token=token)
-        return self.get_note_by_id(note_id)
+            try:
+                return self.get_note_by_id(note_id, xsec_token=token)
+            except (NeedVerifyError, XhsApiError) as exc:
+                logger.info("Feed API failed (%s), falling back to HTML", exc)
+        return self.get_note_from_html(note_id, xsec_token=token or "")
 
     def get_home_feed(self, category: str = "homefeed_recommend") -> dict[str, Any]:
         return self._main_api_post("/api/sns/web/v1/homefeed", {
