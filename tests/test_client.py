@@ -30,6 +30,42 @@ class TestFavorites:
         assert captured["uri"] == "/api/sns/web/v1/note/uncollect"
         assert captured["data"] == {"note_ids": "note-123"}
 
+    def test_report_note_uses_report_submit_payload(self, monkeypatch):
+        captured = {}
+
+        def fake_post(self, uri, data, header_overrides=None):
+            captured["uri"] = uri
+            captured["data"] = data
+            return {"ok": True}
+
+        monkeypatch.setattr(XhsClient, "_main_api_post", fake_post)
+
+        client = XhsClient({"a1": "cookie"})
+        try:
+            client.report_note(
+                note_id="699df922000000002800bff0",
+                target_user_id="6919fe79000000003703117a",
+                report_item_id="porn",
+                single_item_id="pornographic_friend",
+                report_reason="色情低俗",
+                single_reason="色情低俗交友",
+            )
+        finally:
+            client.close()
+
+        assert captured["uri"] == "/api/sns/web/report/submit"
+        assert captured["data"] == {
+            "target_type": "NOTE",
+            "target_id": "699df922000000002800bff0",
+            "target_user_id": "6919fe79000000003703117a",
+            "scenario_id": "note_web",
+            "report_item": {"id": "porn", "reason": "色情低俗"},
+            "single_item": {"id": "pornographic_friend", "reason": "色情低俗交友"},
+            "multi_item": [],
+            "image_url_list": [],
+            "description": "",
+        }
+
 
 class TestCreatorEndpoints:
     def test_creator_note_list_uses_v2_endpoint(self, monkeypatch):

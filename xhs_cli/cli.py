@@ -15,6 +15,7 @@ Usage:
     xhs unfavorite <id_or_url>
     xhs comment <id_or_url> --content "..."
     xhs reply <id_or_url> --comment-id ID --content "..."
+    xhs report <id_or_url> --target-user-id UID --report-item-id RID --single-item-id SID
     xhs favorites [user_id]
     xhs my-notes [--page N]
     xhs notifications [--type mentions|likes|connections]
@@ -96,6 +97,7 @@ cli.add_command(interactions.unfavorite)
 cli.add_command(interactions.comment)
 cli.add_command(interactions.reply)
 cli.add_command(interactions.delete_comment)
+cli.add_command(interactions.report)
 
 # ─── Social commands ────────────────────────────────────────────────────────
 

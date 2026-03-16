@@ -1,4 +1,4 @@
-"""Interaction commands: like, collect, comment, reply."""
+"""Interaction commands: like, collect, comment, reply, report."""
 
 import click
 
@@ -115,6 +115,55 @@ def delete_comment(ctx, note_id: str, comment_id: str, as_json: bool, as_yaml: b
         ctx,
         action=lambda client: client.delete_comment(note_id, comment_id),
         render=lambda _data: print_success(f"Deleted comment {comment_id}"),
+        as_json=as_json,
+        as_yaml=as_yaml,
+    )
+
+
+@click.command("report")
+@click.argument("id_or_url")
+@click.option("--target-user-id", required=True, help="Author user ID of the target note")
+@click.option("--report-item-id", required=True, help="Top-level report category ID (e.g. porn)")
+@click.option("--single-item-id", required=True, help="Second-level report category ID")
+@click.option("--reason", default="", help="Reason text used for both report_item and single_item")
+@click.option("--report-reason", default=None, help="Override reason text for report_item")
+@click.option("--single-reason", default=None, help="Override reason text for single_item")
+@click.option("--scenario-id", default="note_web", show_default=True, help="Report scenario ID")
+@click.option("--description", default="", help="Additional report description")
+@structured_output_options
+@click.pass_context
+def report(
+    ctx,
+    id_or_url: str,
+    target_user_id: str,
+    report_item_id: str,
+    single_item_id: str,
+    reason: str,
+    report_reason: str | None,
+    single_reason: str | None,
+    scenario_id: str,
+    description: str,
+    as_json: bool,
+    as_yaml: bool,
+):
+    """Report a note."""
+    note_id = _resolve_interaction_note(id_or_url)
+    final_report_reason = reason if report_reason is None else report_reason
+    final_single_reason = reason if single_reason is None else single_reason
+
+    handle_command(
+        ctx,
+        action=lambda client: client.report_note(
+            note_id=note_id,
+            target_user_id=target_user_id,
+            report_item_id=report_item_id,
+            single_item_id=single_item_id,
+            scenario_id=scenario_id,
+            report_reason=final_report_reason,
+            single_reason=final_single_reason,
+            description=description,
+        ),
+        render=lambda _data: print_success(f"Reported note {note_id}"),
         as_json=as_json,
         as_yaml=as_yaml,
     )

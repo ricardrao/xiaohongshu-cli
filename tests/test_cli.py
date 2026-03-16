@@ -72,7 +72,7 @@ class TestCliBasic:
             "feed", "hot", "topics", "search-user", "my-notes",
             "notifications", "unread",
             # Interactions
-            "like", "favorite", "unfavorite", "comment", "reply", "delete-comment",
+            "like", "favorite", "unfavorite", "comment", "reply", "delete-comment", "report",
             # Social
             "follow", "unfollow", "favorites",
             # Creator
@@ -483,6 +483,71 @@ class TestCliBasic:
 
         assert result.exit_code == 0
         assert called == {"note_id": "note-abc", "comment_id": "c-1", "content": "hello"}
+
+    def test_report_command_maps_args(self, monkeypatch):
+        called = {}
+
+        class FakeClient:
+            def report_note(
+                self,
+                note_id,
+                target_user_id,
+                report_item_id,
+                single_item_id,
+                scenario_id="note_web",
+                report_reason="",
+                single_reason="",
+                description="",
+            ):
+                called["note_id"] = note_id
+                called["target_user_id"] = target_user_id
+                called["report_item_id"] = report_item_id
+                called["single_item_id"] = single_item_id
+                called["scenario_id"] = scenario_id
+                called["report_reason"] = report_reason
+                called["single_reason"] = single_reason
+                called["description"] = description
+                return {"ok": True}
+
+        def fake_handle_command(ctx, action, render, as_json, as_yaml):
+            action(FakeClient())
+            return None
+
+        monkeypatch.setattr("xhs_cli.commands.interactions.handle_command", fake_handle_command)
+        monkeypatch.setattr(
+            "xhs_cli.commands.interactions.resolve_note_reference",
+            lambda id_or_url: (id_or_url, "", ""),
+        )
+
+        result = runner.invoke(
+            cli,
+            [
+                "report",
+                "note-abc",
+                "--target-user-id",
+                "u-1",
+                "--report-item-id",
+                "porn",
+                "--single-item-id",
+                "pornographic_friend",
+                "--reason",
+                "色情低俗",
+                "--description",
+                "test",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert called == {
+            "note_id": "note-abc",
+            "target_user_id": "u-1",
+            "report_item_id": "porn",
+            "single_item_id": "pornographic_friend",
+            "scenario_id": "note_web",
+            "report_reason": "色情低俗",
+            "single_reason": "色情低俗",
+            "description": "test",
+        }
 
     def test_favorites_saves_index_entries(self, monkeypatch):
         saved = []

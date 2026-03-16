@@ -517,6 +517,38 @@ class InteractionEndpointsMixin:
             "comment_id": comment_id,
         })
 
+    def report_note(
+        self,
+        note_id: str,
+        target_user_id: str,
+        report_item_id: str,
+        single_item_id: str,
+        *,
+        scenario_id: str = "note_web",
+        report_reason: str = "",
+        single_reason: str = "",
+        multi_items: list[dict[str, str]] | None = None,
+        image_url_list: list[str] | None = None,
+        description: str = "",
+    ) -> dict[str, Any]:
+        return self._main_api_post("/api/sns/web/report/submit", {
+            "target_type": "NOTE",
+            "target_id": note_id,
+            "target_user_id": target_user_id,
+            "scenario_id": scenario_id,
+            "report_item": {
+                "id": report_item_id,
+                "reason": report_reason,
+            },
+            "single_item": {
+                "id": single_item_id,
+                "reason": single_reason,
+            },
+            "multi_item": multi_items or [],
+            "image_url_list": image_url_list or [],
+            "description": description,
+        })
+
 
 class CreatorEndpointsMixin:
     """Creator platform search, upload, and publishing endpoints."""
